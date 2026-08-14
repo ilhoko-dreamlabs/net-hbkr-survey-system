@@ -11,6 +11,7 @@ flowchart LR
   V --> S["가중 점수·프로필 계산"]
   S --> D["Drizzle ORM"]
   D --> N["Neon Postgres"]
+  D --> E["Resend · 결과 이메일"]
   S --> U
 ```
 
@@ -18,13 +19,14 @@ flowchart LR
 - `src/app/actions/submit-survey.ts`: 서버 측 재검증, 허니팟 확인, 이메일 기준 시간당 5회 제한, 계산 및 저장
 - `src/lib/submission-schema.ts`: 허용 enum, 길이, 중복, 대표 선택 포함 여부, 동의 버전을 검증하는 Zod 스키마
 - `src/lib/survey-data.ts`: 설문 기준 데이터와 AI Depth 가중 점수 계산
+- `src/lib/email.ts`, `src/emails/`: 저장된 결과를 이용한 best-effort 트랜잭션 이메일 전송과 템플릿
 - `src/db/schema.ts`: `survey_submissions` Drizzle 모델
 - `src/db/migrations/0000_init.sql`: Drizzle journal/snapshot과 함께 관리되는 초기 테이블, 제약조건, 인덱스 및 동시 제출 제한 트리거
 - `src/app/api/maintenance/purge-expired/route.ts`: `CRON_SECRET`으로 보호되는 1년 초과 응답 자동 파기 작업
 - `src/app/privacy/page.tsx`: 개인정보 수집·이용 안내
 - `tests/`: DB 연결 없이 실행하는 점수 및 입력 계약 단위 테스트
 
-저장 행에는 이름, 정규화된 이메일, 선택 입력인 소속·직책, 동의 상태와 버전, 마케팅 이메일 확인 시각, 원본 설문 응답 JSON, 계산 결과 JSON, 제출 시각이 포함됩니다. `DATABASE_URL`과 `CRON_SECRET`은 서버에서만 읽으며 브라우저 번들에 노출하지 않습니다.
+저장 행에는 이름, 정규화된 이메일, 선택 입력인 소속·직책, 동의 상태와 버전, 마케팅 이메일 확인 시각, 원본 설문 응답 JSON, 계산 결과 JSON, 제출 시각이 포함됩니다. DB 저장이 성공한 뒤 결과 이메일을 별도로 시도합니다. `DATABASE_URL`, `CRON_SECRET`, `RESEND_API_KEY`는 서버에서만 읽으며 브라우저 번들에 노출하지 않습니다.
 
 ## 로컬 실행
 
@@ -41,7 +43,13 @@ Copy-Item .env.example .env.local
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
 CRON_SECRET=32자 이상의 무작위_비밀값
 SURVEY_GLOBAL_HOURLY_LIMIT=500
+RESEND_API_KEY=
+SURVEY_EMAIL_FROM="HBKR Survey <results@mail.hbkr.net>"
+SURVEY_EMAIL_REPLY_TO=privacy@hbkr.net
+SURVEY_SITE_URL=https://survey.hbkr.net
 ```
+
+로컬에서 실제 메일이 필요하지 않으면 `RESEND_API_KEY`를 비워 둡니다. 이 경우 설문과 DB 저장은 정상 작동하고 이메일만 건너뜁니다. 실제 전송을 시험할 때만 별도 개발용 Resend key와 Resend에서 허용된 발신 주소를 사용하세요. 운영 key나 Production 수신자 데이터를 로컬 환경에서 사용하지 않습니다.
 
 스키마를 적용하고 개발 서버를 시작합니다.
 
@@ -82,16 +90,57 @@ npm run dev
 
 ## Vercel 배포
 
-가장 단순한 운영 방식은 GitHub 연동입니다.
+운영 배포의 단일 경로는 `.github/workflows/deploy-vercel.yml`의 GitHub Actions입니다. Pull Request와 `main`
+push에서 `npm run check`를 실행하고, 활성화된 `main` 실행은 Vercel 설정 pull → production artifact build → DB
+migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel Git 자동 배포는 중복 배포를 피하기 위해 연결하지
+않거나 비활성화합니다.
 
-1. Vercel Dashboard에서 **New Project**를 선택하고 이 GitHub 저장소를 import합니다.
-2. Framework Preset은 Next.js, Root Directory는 저장소 루트로 둡니다.
-3. Project Settings → Environment Variables에서 Production용 `DATABASE_URL`, `CRON_SECRET`, `SURVEY_GLOBAL_HOURLY_LIMIT`을 등록합니다. Preview를 사용할 경우 Preview 전용 값을 별도로 등록합니다.
-4. 먼저 Neon migration을 적용한 뒤 배포합니다. `main` 브랜치 push는 Production, 다른 브랜치와 Pull Request는 Preview 배포가 됩니다.
-5. Production 배포 뒤 Vercel Cron 화면에서 `/api/maintenance/purge-expired`가 매일 18:15 UTC에 등록됐는지 확인합니다.
-6. 배포 로그에 secret이 출력되지 않았는지 확인하고, Preview에서 전체 제출 흐름을 검증한 후 Production으로 병합합니다.
+1. Vercel Project의 Framework Preset은 Next.js, Root Directory는 저장소 루트로 둡니다.
+2. Project Settings → Environment Variables에 Production용 `DATABASE_URL`, `CRON_SECRET`,
+   `SURVEY_GLOBAL_HOURLY_LIMIT`, `SURVEY_EMAIL_FROM`, 선택값 `SURVEY_EMAIL_REPLY_TO`,
+   `SURVEY_SITE_URL=https://survey.hbkr.net`을 등록합니다. 아래 Resend 연동의 `RESEND_API_KEY`도 Production 범위에
+   연결합니다.
+3. GitHub 저장소 변수 `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_SCOPE`를 Vercel 프로젝트 값으로 설정합니다.
+4. Vercel Account Settings에서 CI 전용 token을 만들고 GitHub production environment secret `VERCEL_TOKEN`으로
+   등록합니다. Neon에는 migration 전용 role을 준비하고 그 connection string을 같은 environment의 `DATABASE_URL`
+   secret으로 등록합니다. 이 값들은 저장소 파일, 로그 또는 명령 인자에 넣지 않습니다.
+5. 초기 준비가 모두 끝난 뒤 저장소 변수 `VERCEL_CI_ENABLED=true`로 바꾸고 Actions의 **Validate and deploy to
+   Vercel** workflow를 `main`에서 수동 실행합니다. 준비 전에는 이 값이 `false`라서 검증 job만 실행됩니다.
+6. Production 배포 뒤 Vercel Cron 화면에서 `/api/maintenance/purge-expired`가 매일 18:15 UTC에 등록됐는지,
+   Actions summary의 production URL과 실제 저장·메일 전송이 정상인지 확인합니다.
 
-CLI를 사용하는 경우 프로젝트를 연결한 뒤 `vercel`로 Preview, `vercel --prod`로 Production 배포를 만들 수 있습니다. `.vercel/`과 토큰은 커밋하지 않습니다. Vercel의 현재 Git 배포 절차는 [공식 Git 문서](https://vercel.com/docs/git)를 참고하세요.
+워크플로는 Vercel CLI `59.0.0`을 고정해 사용합니다. `VERCEL_TOKEN`은 Vercel CLI 단계에만, migration
+`DATABASE_URL`은 migration 단계에만 환경변수로 주입합니다. Production deploy는 직렬화되어 migration 이후 새 push가
+기존 실행을 중간 취소하지 않습니다. 현재 CI/CD 구성은
+[Vercel의 GitHub Actions 안내](https://vercel.com/docs/deployments/git/vercel-for-github)와 prebuilt deploy 패턴을
+따릅니다. `.vercel/`, `.env.local`, token과 provider secret은 커밋하지 않습니다.
+
+## 결과 이메일 (Resend)
+
+결과 메일은 필수 동의로 저장된 응답자의 이메일 주소에 해당 제출의 포지셔닝 요약을 보내는 트랜잭션 알림입니다. 마케팅 동의 여부와 관계없이 제출 결과 안내 목적으로만 사용하며, 별도의 홍보 메일 대상 등록을 하지 않습니다.
+
+### Marketplace와 발신 도메인 준비
+
+1. Vercel Project의 Marketplace에서 **Resend**를 설치하고 이 프로젝트 및 사용할 환경(Production, 필요 시 Preview)에 연결합니다. 연동은 Vercel에 server-only `RESEND_API_KEY`를 생성합니다.
+2. Resend Dashboard → Domains에서 전송 전용 하위 도메인(예: `mail.hbkr.net`)을 추가합니다. 루트 도메인과 평판을 분리할 수 있어 하위 도메인을 권장합니다.
+3. Resend가 제시하는 MX/SPF 및 DKIM DNS 레코드를 `hbkr.net` DNS 공급자에 값 그대로 등록합니다. 웹 서비스의 `survey` CNAME과 메일 인증 레코드는 서로 다른 host에 두며, DNS 화면에서 Verified가 될 때까지 기다립니다.
+4. `SURVEY_EMAIL_FROM`의 주소 domain은 인증한 domain과 일치시킵니다. 인증 후에는 그 domain의 원하는 local-part를 발신 주소로 쓸 수 있습니다.
+5. `SURVEY_EMAIL_REPLY_TO`는 선택값입니다. 설정한다면 실제 수신·응대 가능한 메일함을 사용하세요. Resend의 발신 domain 인증은 Reply-To 메일함을 만들어 주지 않습니다.
+
+| 변수 | 필수 여부 | 예시와 역할 |
+| --- | --- | --- |
+| `RESEND_API_KEY` | 전송 시 필수 | Marketplace가 주입하는 비밀 key. 저장소와 `NEXT_PUBLIC_*`에 절대 넣지 않음 |
+| `SURVEY_EMAIL_FROM` | 전송 시 필수 | `HBKR Survey <results@mail.hbkr.net>`처럼 인증 domain을 사용한 발신자 |
+| `SURVEY_EMAIL_REPLY_TO` | 선택 | 문의 답장을 받을 실제 메일함 |
+| `SURVEY_SITE_URL` | 필수 | 이메일 링크 기준의 query/hash/path 없는 HTTPS origin. 기본값과 운영값은 `https://survey.hbkr.net` |
+
+Production에서는 환경 변수를 저장한 뒤 다시 배포해야 새 값이 적용됩니다. 배포 후 실제 관리 주소로 설문 한 건을 제출해 본문, 링크, From/Reply-To, SPF·DKIM·DMARC 결과를 확인하세요. Resend Marketplace 동작은 [Vercel Marketplace 안내](https://vercel.com/marketplace/resend), 발신 API와 domain 설정은 [Resend 문서](https://resend.com/docs)를 기준으로 합니다.
+
+### 저장과 메일 실패의 독립성
+
+DB insert가 설문 제출의 성공 기준입니다. 저장이 완료된 뒤 이메일을 best-effort로 시도하므로 `RESEND_API_KEY` 미설정, Resend 일시 장애, 수신 거부나 template 전송 오류가 발생해도 이미 저장된 제출과 계산 결과를 롤백하지 않습니다. 사용자는 화면에서 저장된 결과를 계속 확인·다운로드할 수 있어야 합니다.
+
+반대로 DB 저장이 실패하면 결과 이메일을 보내지 않습니다. 메일 발송 성공은 받은편지함 도착을 보장하지 않으므로 운영에서는 Resend의 delivered, bounced, complained, suppressed 상태를 별도로 관찰하세요. 현재 저장 행 자체가 메일 재시도 queue는 아니므로 무조건 재제출을 안내해 중복 데이터를 만들지 말고, 전송 이력·idempotency·관리자 재전송 정책을 먼저 마련한 뒤 재시도 기능을 운영하세요.
 
 ## `survey.hbkr.net` 연결 (외부 DNS)
 

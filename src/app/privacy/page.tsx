@@ -10,12 +10,23 @@ export default function PrivacyPage() {
 
         <section>
           <h2>수집 목적</h2>
-          <p>AI Positioning Survey 결과 생성, 응답 이력 관리, 요청한 경우의 후속 안내를 위해 사용합니다.</p>
+          <p>
+            AI Positioning Survey 결과 생성·저장, 입력한 이메일로 결과 전송, 응답 이력 관리와 요청한 경우의 후속
+            안내를 위해 사용합니다.
+          </p>
         </section>
 
         <section>
           <h2>수집 항목</h2>
           <p>필수 항목은 이름, 이메일, 설문 응답과 동의 기록입니다. 소속과 직무는 선택 항목입니다.</p>
+        </section>
+
+        <section>
+          <h2>결과 메일 전송</h2>
+          <p>
+            결과 메일 전송을 위해 입력한 이메일 주소, 이름과 결과 요약이 이메일 전송 서비스 제공자 Resend에서
+            처리될 수 있습니다. 마케팅 소식은 별도의 선택 동의와 이메일 소유 확인 없이는 발송하지 않습니다.
+          </p>
         </section>
 
         <section>
@@ -29,9 +40,12 @@ export default function PrivacyPage() {
         <section>
           <h2>동의 거부와 문의</h2>
           <p>
-            필수 수집에 동의하지 않을 수 있으나, 이 경우 서버에 결과를 저장할 수 없습니다. 열람·정정·삭제
-            요청은 <a className="text-link" href="mailto:privacy@hbkr.net">privacy@hbkr.net</a>으로 접수할 수
-            있습니다. 개인정보 처리 주체는 HBKR입니다.
+            필수 수집에 동의하지 않을 수 있으나, 이 경우 서버에 결과를 저장하거나 이메일로 전송할 수 없습니다.
+            열람·정정·삭제 요청은{" "}
+            <a className="text-link" href="mailto:privacy@hbkr.net">
+              privacy@hbkr.net
+            </a>
+            으로 접수할 수 있습니다. 개인정보 처리 주체는 HBKR입니다.
           </p>
         </section>
 

@@ -617,6 +617,20 @@ a:focus-visible {
   line-height: 1.7;
 }
 
+.result-email-note {
+  margin: 14px 0 0;
+  max-width: 680px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.result-email-note.email-unavailable {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .submission-ticket {
   padding: 18px;
   border-radius: 16px;

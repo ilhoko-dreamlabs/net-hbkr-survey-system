@@ -42,6 +42,7 @@ type StoredResult = {
   submissionId: string;
   submittedAt: string;
   result: SurveyResult;
+  emailDelivery: "scheduled" | "not_configured";
 };
 
 const initialForm: FormState = {
@@ -199,6 +200,7 @@ export function Survey() {
         submissionId: response.submissionId,
         submittedAt: response.submittedAt,
         result: response.result,
+        emailDelivery: response.emailDelivery,
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -310,10 +312,11 @@ export function Survey() {
                 <>
                   <p className="step-kicker">Before we begin</p>
                   <h2 className="step-title" ref={headingRef} tabIndex={-1}>
-                    결과를 저장할 기본 정보를 알려주세요.
+                    결과를 저장하고 받을 기본 정보를 알려주세요.
                   </h2>
                   <p className="step-description">
-                    이름과 이메일은 제출 결과를 구분하는 데 사용합니다. 소속과 직무는 선택 사항입니다.
+                    이름과 이메일은 제출 결과를 구분하고 결과 메일을 보내는 데 사용합니다. 소속과 직무는 선택
+                    사항입니다.
                   </p>
 
                   <div className="field-grid">
@@ -403,8 +406,8 @@ export function Survey() {
                         required
                       />
                       <span>
-                        <b>[필수]</b> 결과 생성과 저장을 위한 개인정보 수집·이용에 동의합니다. 보유 기간은 제출일로부터
-                        1년입니다.{" "}
+                        <b>[필수]</b> 결과 생성·저장과 입력한 이메일로 결과를 전송하기 위한 개인정보 수집·이용에
+                        동의합니다. 보유 기간은 제출일로부터 1년입니다.{" "}
                         <Link href="/privacy" className="text-link" target="_blank" rel="noreferrer">
                           자세히 보기
                         </Link>
@@ -764,7 +767,7 @@ function ResultView({
   onReset: () => void;
 }) {
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
-  const { result, submissionId, submittedAt } = storedResult;
+  const { result, submissionId, submittedAt, emailDelivery } = storedResult;
   const domainLabel = labelFor(domains, result.primaryDomain);
   const roleLabel = labelFor(roles, result.primaryRole);
   const maturityLabel = labelFor(maturityLevels, result.maturity);
@@ -786,6 +789,15 @@ function ResultView({
             {domainLabel} 분야에서 {primaryDepth.label} 역량이 가장 두드러지며, 주요 역할은 {roleLabel}입니다.
             현재 적용 경험은 {maturityLabel} 단계로 응답했습니다.
           </p>
+          {emailDelivery === "scheduled" ? (
+            <p className="result-email-note" role="status">
+              입력한 이메일로 결과 발송을 요청했습니다. 도착하지 않으면 잠시 후 스팸함도 확인해 주세요.
+            </p>
+          ) : (
+            <p className="result-email-note email-unavailable" role="status">
+              결과는 저장됐지만 이메일 발송 기능은 현재 사용할 수 없습니다. 아래에서 결과를 저장해 주세요.
+            </p>
+          )}
         </div>
         <div className="submission-ticket">
           <span>Stored submission</span>

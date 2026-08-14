@@ -1,9 +1,14 @@
 "use server";
 
 import { and, count, eq, gte } from "drizzle-orm";
+import { after } from "next/server";
 
 import { getDb } from "../../db";
 import { surveySubmissions } from "../../db/schema";
+import {
+  isSurveyResultEmailConfigured,
+  sendSurveyResultEmail,
+} from "../../lib/email";
 import {
   surveySubmissionSchema,
   type SurveySubmissionInput,
@@ -34,6 +39,7 @@ type SubmitSurveySuccess = {
   submissionId: string;
   result: SurveyResult;
   submittedAt: string;
+  emailDelivery: "scheduled" | "not_configured";
 };
 
 type SubmitSurveyFailure = {
@@ -166,11 +172,48 @@ export async function submitSurvey(
       throw new Error("Survey submission insert returned no row.");
     }
 
+    const submittedAt = stored.submittedAt.toISOString();
+    let emailDelivery: SubmitSurveySuccess["emailDelivery"] =
+      "not_configured";
+
+    if (isSurveyResultEmailConfigured()) {
+      try {
+        after(async () => {
+          try {
+            await sendSurveyResultEmail({
+              to: submission.respondent.email,
+              name: submission.respondent.name,
+              submissionId: stored.id,
+              submittedAt,
+              result,
+            });
+          } catch (error) {
+            const errorName =
+              error instanceof Error ? error.name : "UnknownError";
+            console.error(
+              `[survey-email] unexpected after() failure for submission ${stored.id}: ${errorName}.`,
+            );
+          }
+        });
+        emailDelivery = "scheduled";
+      } catch (error) {
+        const errorName = error instanceof Error ? error.name : "UnknownError";
+        console.error(
+          `[survey-email] could not schedule submission ${stored.id}: ${errorName}.`,
+        );
+      }
+    } else {
+      console.warn(
+        `[survey-email] not scheduled for submission ${stored.id}: RESEND_API_KEY and/or SURVEY_EMAIL_FROM is not configured.`,
+      );
+    }
+
     return {
       ok: true,
       submissionId: stored.id,
       result,
-      submittedAt: stored.submittedAt.toISOString(),
+      submittedAt,
+      emailDelivery,
     };
   } catch (error) {
     if (isDatabaseRateLimitError(error)) {

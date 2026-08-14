@@ -1,0 +1,108 @@
+name: Validate and deploy to Vercel
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: validate-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run project checks
+        run: npm run check
+
+  deploy-production:
+    name: Deploy production
+    needs: validate
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request' &&
+      vars.VERCEL_CI_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: vercel-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@59.0.0
+
+      - name: Verify deployment configuration
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          test -n "$VERCEL_TOKEN" || { echo "VERCEL_TOKEN is not configured." >&2; exit 1; }
+          test -n "$DATABASE_URL" || { echo "DATABASE_URL is not configured for migration." >&2; exit 1; }
+          test -n "$VERCEL_ORG_ID" || { echo "VERCEL_ORG_ID is not configured." >&2; exit 1; }
+          test -n "$VERCEL_PROJECT_ID" || { echo "VERCEL_PROJECT_ID is not configured." >&2; exit 1; }
+          test -n "$VERCEL_SCOPE" || { echo "VERCEL_SCOPE is not configured." >&2; exit 1; }
+
+      - name: Pull production project settings
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --scope="$VERCEL_SCOPE"
+
+      - name: Build production artifact
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --scope="$VERCEL_SCOPE"
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Deploy prebuilt artifact
+        id: deploy
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          deployment_url="$(vercel deploy --prebuilt --prod --scope="$VERCEL_SCOPE")"
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "### Vercel production deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: $deployment_url" >> "$GITHUB_STEP_SUMMARY"
