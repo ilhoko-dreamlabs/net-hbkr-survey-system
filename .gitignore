@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# Next.js output
+.next/
+out/
+
+# local secrets and Vercel linkage
+.env
+.env.*
+!.env.example
+.vercel/
+
+# test and tooling output
+coverage/
+*.tsbuildinfo
+
+# operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# logs
+*.log
+npm-debug.log*

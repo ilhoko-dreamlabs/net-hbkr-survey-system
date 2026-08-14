@@ -1,0 +1,171 @@
+{
+  "id": "21f2351c-5e0c-4156-9ad3-b6cec683a569",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.survey_submissions": {
+      "name": "survey_submissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(254)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization": {
+          "name": "organization",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "job_title": {
+          "name": "job_title",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "survey_version": {
+          "name": "survey_version",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "privacy_consent": {
+          "name": "privacy_consent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "marketing_consent": {
+          "name": "marketing_consent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "marketing_verified_at": {
+          "name": "marketing_verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "privacy_version": {
+          "name": "privacy_version",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw_answers": {
+          "name": "raw_answers",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "computed_result": {
+          "name": "computed_result",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "survey_submissions_email_submitted_at_idx": {
+          "name": "survey_submissions_email_submitted_at_idx",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "submitted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "survey_submissions_submitted_at_idx": {
+          "name": "survey_submissions_submitted_at_idx",
+          "columns": [
+            {
+              "expression": "submitted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "survey_submissions_name_not_blank": {
+          "name": "survey_submissions_name_not_blank",
+          "value": "char_length(btrim(\"survey_submissions\".\"name\")) BETWEEN 1 AND 80"
+        },
+        "survey_submissions_email_normalized": {
+          "name": "survey_submissions_email_normalized",
+          "value": "\"survey_submissions\".\"email\" = lower(btrim(\"survey_submissions\".\"email\"))"
+        },
+        "survey_submissions_privacy_consent_required": {
+          "name": "survey_submissions_privacy_consent_required",
+          "value": "\"survey_submissions\".\"privacy_consent\" IS TRUE"
+        },
+        "survey_submissions_raw_answers_object": {
+          "name": "survey_submissions_raw_answers_object",
+          "value": "jsonb_typeof(\"survey_submissions\".\"raw_answers\") = 'object'"
+        },
+        "survey_submissions_computed_result_object": {
+          "name": "survey_submissions_computed_result_object",
+          "value": "jsonb_typeof(\"survey_submissions\".\"computed_result\") = 'object'"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

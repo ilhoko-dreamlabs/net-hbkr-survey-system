@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Positioning Survey v0.1</title>
+  <meta name="description" content="Domain × AI Depth × Role × Production Maturity 기반 AI Positioning Survey" />
+  <style>
+    :root{
+      --bg:#f6f7fb; --panel:#ffffff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+      --accent:#111827; --accent2:#374151; --soft:#eef2f7; --ok:#0f766e;
+      --radius:20px; --shadow:0 18px 50px rgba(17,24,39,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(180deg,#f9fafb 0%,#f3f4f6 100%);color:var(--text)}
+    button,input,select{font:inherit}
+    .wrap{max-width:980px;margin:0 auto;padding:28px 18px 72px}
+    header{padding:30px 0 22px}
+    .eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    h1{font-size:clamp(30px,5vw,54px);line-height:1.05;margin:10px 0 14px;letter-spacing:-.04em}
+    .lead{font-size:17px;line-height:1.7;color:var(--muted);max-width:780px}
+    .note{display:inline-flex;gap:8px;align-items:center;margin-top:16px;padding:10px 12px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.75);font-size:13px;color:var(--muted)}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;margin-top:20px}
+    .progress{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:28px}
+    .progress span{height:6px;border-radius:99px;background:var(--soft)}
+    .progress span.active{background:var(--accent)}
+    .step{display:none}.step.active{display:block}
+    h2{font-size:26px;letter-spacing:-.03em;margin:0 0 8px}
+    .sub{color:var(--muted);line-height:1.6;margin:0 0 24px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .choice{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:.15s}
+    .choice:hover{border-color:#9ca3af;transform:translateY(-1px)}
+    .choice input{margin-top:3px}
+    .choice strong{display:block;font-size:14px}.choice small{display:block;margin-top:4px;color:var(--muted);line-height:1.45}
+    .field{margin-top:22px}.field label.title{display:block;font-weight:800;margin-bottom:9px}
+    select{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text)}
+    .q{padding:18px 0;border-top:1px solid var(--line)}.q:first-of-type{border-top:0}
+    .q-title{font-weight:750;line-height:1.5;margin-bottom:12px}
+    .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .scale label{border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;font-size:12px;color:var(--muted)}
+    .scale label:has(input:checked){border-color:var(--accent);background:var(--accent);color:#fff}
+    .scale input{display:none}
+    .scale-head{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:6px}
+    .actions{display:flex;justify-content:space-between;gap:10px;margin-top:28px}
+    .btn{border:0;border-radius:12px;padding:12px 18px;font-weight:800;cursor:pointer}.btn.primary{background:var(--accent);color:#fff}.btn.secondary{background:var(--soft);color:var(--text)}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .error{display:none;margin-top:14px;padding:11px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px}.error.show{display:block}
+    #result{display:none}.result-hero{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+    .card{border:1px solid var(--line);border-radius:16px;padding:18px;background:#fff}
+    .label{font-size:12px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+    .big{font-size:28px;font-weight:900;letter-spacing:-.03em;margin-top:6px}
+    .summary{font-size:16px;line-height:1.7;color:#374151;margin-top:10px}
+    .pillrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.pill{padding:7px 10px;border-radius:999px;background:var(--soft);font-size:12px;font-weight:750}
+    .bars{display:grid;gap:12px;margin-top:14px}.barrow{display:grid;grid-template-columns:90px 1fr 38px;gap:10px;align-items:center;font-size:13px}
+    .track{height:9px;border-radius:99px;background:var(--soft);overflow:hidden}.fill{height:100%;background:var(--accent);border-radius:99px}
+    .matrix-wrap{overflow:auto;margin-top:14px}.matrix{min-width:700px;display:grid;grid-template-columns:180px repeat(5,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .cell{padding:11px 9px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px;text-align:center;background:#fff}.cell.h{font-weight:800;background:#f9fafb}.cell.rowh{text-align:left;font-weight:800}.cell.hit{background:#111827;color:#fff}.cell.soft-hit{background:#e5e7eb;font-weight:800}
+    .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}.meta .card .big{font-size:18px}
+    .disclaimer{margin-top:18px;padding:14px;border-radius:12px;background:#f9fafb;color:var(--muted);font-size:12px;line-height:1.55;border:1px solid var(--line)}
+    footer{margin-top:26px;color:var(--muted);font-size:12px;text-align:center}
+    @media (max-width:760px){.grid{grid-template-columns:1fr}.result-hero{grid-template-columns:1fr}.meta{grid-template-columns:1fr}.panel{padding:20px}.scale label{padding:10px 2px}.barrow{grid-template-columns:76px 1fr 34px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">AI Positioning Survey · v0.1</div>
+    <h1>나는 AI를 어디에서,<br>어떤 방식으로 쓰고 있는가?</h1>
+    <p class="lead">이 설문은 AI 실력을 한 줄로 서열화하지 않습니다. <b>Domain × AI Depth × Role × Production Maturity</b>를 기준으로 현재의 AI 활용 포지션을 구조화합니다.</p>
+    <div class="note">약 5–7분 · 브라우저 안에서만 계산 · 서버 저장 없음</div>
+  </header>
+
+  <section id="survey" class="panel">
+    <div class="progress"><span class="active"></span><span></span><span></span><span></span></div>
+
+    <div class="step active" data-step="0">
+      <h2>1. Domain</h2>
+      <p class="sub">AI를 가장 많이 활용하거나 전문성을 가진 분야를 선택하세요. 복수 선택이 가능합니다.</p>
+      <div id="domainChoices" class="grid"></div>
+      <div class="field">
+        <label class="title" for="primaryDomain">그중 가장 대표적인 Primary Domain</label>
+        <select id="primaryDomain"><option value="">먼저 위에서 Domain을 선택하세요</option></select>
+      </div>
+      <div class="error" id="error0">Domain을 하나 이상 선택하고 Primary Domain을 지정해 주세요.</div>
+      <div class="actions"><span></span><button class="btn primary" data-next>다음</button></div>
+    </div>
+
+    <div class="step" data-step="1">
+      <h2>2. AI Depth</h2>
+      <p class="sub">“나는 어느 레벨인가”가 아니라 실제 행동에 가장 가까운 정도를 표시해 주세요.</p>
+      <div class="scale-head"><span>전혀 아니다</span><span>매우 그렇다</span></div>
+      <div id="depthQuestions"></div>
+      <div class="error" id="error1">모든 문항에 응답해 주세요.</div>
+      <div class="actions"><button class="btn secondary" data-prev>이전</button><button class="btn primary" data-next>다음</button></div>
+    </div>
+
+    <div class="step" data-step="2">
+      <h2>3. Role & Capability</h2>
+      <p class="sub">현재 AI를 활용할 때 실제로 맡는 역할과 직접 다뤄본 Capability를 선택하세요.</p>
+      <div class="field"><label class="title">주요 Role</label><div id="roleChoices" class="grid"></div></div>
+      <div class="field"><label class="title">직접 사용·구성해 본 Capability</label><div id="capChoices" class="grid"></div></div>
+      <div class="error" id="error2">Role을 하나 이상 선택해 주세요.</div>
+      <div class="actions"><button class="btn secondary" data-prev>이전</button><button class="btn primary" data-next>다음</button></div>
+    </div>
+
+    <div class="step" data-step="3">
+      <h2>4. Production Maturity</h2>
+      <p class="sub">가장 높은 수준의 “실제 적용 경험” 하나를 선택하세요. 기술 난이도와는 별개의 축입니다.</p>
+      <div id="maturityChoices" class="grid"></div>
+      <div class="error" id="error3">Production Maturity를 선택해 주세요.</div>
+      <div class="actions"><button class="btn secondary" data-prev>이전</button><button class="btn primary" id="finish">결과 보기</button></div>
+    </div>
+  </section>
+
+  <section id="result" class="panel">
+    <div class="result-hero">
+      <div class="card">
+        <div class="label">AI Positioning Profile</div>
+        <div class="big" id="profileTitle"></div>
+        <div class="summary" id="profileSummary"></div>
+        <div class="pillrow" id="domainPills"></div>
+      </div>
+      <div class="card">
+        <div class="label">Primary Position</div>
+        <div class="big" id="primaryPosition"></div>
+        <div class="summary" id="primaryPositionDesc"></div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="card"><div class="label">Primary Domain</div><div class="big" id="rDomain"></div></div>
+      <div class="card"><div class="label">Primary Role</div><div class="big" id="rRole"></div></div>
+      <div class="card"><div class="label">Production Maturity</div><div class="big" id="rMaturity"></div></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="label">AI Depth Shape</div>
+      <div class="bars" id="depthBars"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="label">Positioning Matrix</div>
+      <div class="summary">Primary Domain 행에서 가장 강한 AI Depth를 강조합니다. 오른쪽이 더 “고급”이라는 의미는 아닙니다.</div>
+      <div class="matrix-wrap"><div class="matrix" id="matrix"></div></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="label">Selected Capabilities</div>
+      <div class="pillrow" id="capPills"></div>
+    </div>
+
+    <div class="disclaimer">이 결과는 v0.1 자기보고형 프로파일입니다. 자격·실무능력을 외부 검증한 평가가 아니며, 사람을 상하로 서열화하기 위한 점수가 아닙니다. 목적은 자신의 AI 활용 위치를 설명 가능한 구조로 만드는 것입니다.</div>
+    <div class="actions"><button class="btn secondary" id="restart">다시 작성</button><div style="display:flex;gap:8px"><button class="btn secondary" id="copyResult">결과 복사</button><button class="btn primary" id="downloadJson">JSON 저장</button></div></div>
+  </section>
+
+  <footer>AI Positioning Survey v0.1 · Domain × AI Depth × Role × Production Maturity</footer>
+</div>
+<script>
+const domains = [
+  ['software','Software / Development','개발, 제품, 시스템, 자동화'],
+  ['video','Video / Film','영상 제작, 연출, 편집, 생성형 영상'],
+  ['design','Design / Image','디자인, 이미지, 브랜딩, 시각 작업'],
+  ['audio','Music / Audio','음악, 음성, 사운드, 오디오 제작'],
+  ['marketing','Marketing / Content','마케팅, 콘텐츠, 광고, 캠페인'],
+  ['sales','Sales','영업, 제안, CRM, Lead 관리'],
+  ['education','Education','교육, 강의, 학습 콘텐츠, 튜터링'],
+  ['research','Research','리서치, 분석, 지식 탐색'],
+  ['legal','Legal','법률, 계약, 규정, 문서 검토'],
+  ['finance','Finance / Accounting','재무, 회계, 경영 분석'],
+  ['manufacturing','Manufacturing','제조, 생산, 현장 운영'],
+  ['healthcare','Healthcare','의료, 헬스케어, 임상 지원'],
+  ['other','Other Domain','기타 전문 분야']
+];
+const depthLabels = {
+  use:['Use','개별 AI 도구를 업무에 활용'],
+  workflow:['Workflow','여러 AI 도구를 조합해 반복 가능한 작업 흐름 구성'],
+  integrate:['Integrate','AI를 외부 시스템·데이터·자동화와 연결'],
+  build:['Build','Agent / AI Application / AI 기능을 직접 구축'],
+  core:['Core AI','Model / Training / Serving / Infra 자체를 개발']
+};
+const depthQs = [
+  {t:'필요한 업무에 맞는 AI 도구를 스스로 찾아 선택해 사용한다.',w:{use:1,workflow:.25}},
+  {t:'한 가지 결과물을 만들기 위해 서로 다른 AI 도구를 두 개 이상 조합한다.',w:{use:.25,workflow:1}},
+  {t:'좋은 결과를 반복하기 위해 Prompt, Reference, Template, 절차 등을 정리해 둔다.',w:{workflow:1}},
+  {t:'AI 결과물을 검수하고 실패 원인을 판단해 과정 일부를 수정하는 기준이 있다.',w:{workflow:1}},
+  {t:'AI 작업을 Make, Zapier, n8n, Script 등으로 자동화한 경험이 있다.',w:{integrate:1,workflow:.25}},
+  {t:'AI를 Database, Drive, CRM, 업무 시스템 또는 외부 API와 연결해 사용한 경험이 있다.',w:{integrate:1}},
+  {t:'API 또는 SDK를 이용해 AI 기능을 직접 구현한 경험이 있다.',w:{build:.8,integrate:.4}},
+  {t:'RAG, MCP/Tool-use, Agent 또는 AI Application을 직접 설계·구축한 경험이 있다.',w:{build:1,integrate:.25}},
+  {t:'AI 시스템의 Evaluation, Observability, 권한, 운영 구조까지 다뤄본 경험이 있다.',w:{build:.7,integrate:.6}},
+  {t:'Model fine-tuning, training, serving, inference 최적화 또는 AI infra를 직접 다뤄본 경험이 있다.',w:{core:1,build:.25}}
+];
+const roles = [
+  ['creator','Creator','AI를 이용해 최종 결과물을 직접 만든다'],
+  ['operator','Operator','AI를 실제 업무 수행에 지속적으로 사용한다'],
+  ['orchestrator','Orchestrator','여러 도구·사람·작업 순서를 설계하고 조정한다'],
+  ['integrator','Integrator','AI와 외부 시스템·데이터를 연결한다'],
+  ['builder','Builder','Agent, AI 기능, Application을 직접 만든다'],
+  ['architect','Architect','AI 적용 구조와 기술 Architecture를 설계한다'],
+  ['researcher','Researcher','모델·도구·방법을 실험하고 비교한다'],
+  ['educator','Educator','다른 사람이 AI를 활용하도록 교육한다'],
+  ['consultant','Consultant','문제를 진단하고 AI 적용 방식을 제안한다']
+];
+const capabilities = [
+  ['text','Text / LLM'],['image','Image Generation'],['video','Video Generation'],['audio','Audio / Voice'],
+  ['prompt','Prompt / Reference Design'],['workflow','Workflow Design'],['automation','Automation'],['api','API / SDK'],
+  ['rag','RAG / Knowledge'],['mcp','MCP / Tool-use'],['agent','Agent'],['multiagent','Multi-Agent'],
+  ['eval','Evaluation / Observability'],['finetune','Fine-tuning'],['serving','Model Serving / Infra']
+];
+const maturity = [
+  ['explore','Explore','개인적으로 AI 도구를 실험하고 익히는 단계'],
+  ['prototype','Prototype','AI를 이용해 하나의 완성된 결과물 또는 시제품을 만들어 본 단계'],
+  ['repeatable','Repeatable','같은 유형의 작업을 일정 품질로 반복할 수 있는 단계'],
+  ['production','Production','실제 고객·회사·업무 환경에서 지속적으로 사용하는 단계'],
+  ['scaled','Scaled','여러 사람·팀 또는 지속 운영 환경으로 확장한 단계']
+];
+
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+let step=0;
+function render(){
+  $('#domainChoices').innerHTML = domains.map(d=>`<label class="choice"><input type="checkbox" name="domain" value="${d[0]}"><span><strong>${d[1]}</strong><small>${d[2]}</small></span></label>`).join('');
+  $('#depthQuestions').innerHTML = depthQs.map((q,i)=>`<div class="q"><div class="q-title">${i+1}. ${q.t}</div><div class="scale">${[0,1,2,3,4].map(v=>`<label><input type="radio" name="dq${i}" value="${v}">${['0','1','2','3','4'][v]}</label>`).join('')}</div></div>`).join('');
+  $('#roleChoices').innerHTML = roles.map(r=>`<label class="choice"><input type="checkbox" name="role" value="${r[0]}"><span><strong>${r[1]}</strong><small>${r[2]}</small></span></label>`).join('');
+  $('#capChoices').innerHTML = capabilities.map(c=>`<label class="choice"><input type="checkbox" name="cap" value="${c[0]}"><span><strong>${c[1]}</strong></span></label>`).join('');
+  $('#maturityChoices').innerHTML = maturity.map(m=>`<label class="choice"><input type="radio" name="maturity" value="${m[0]}"><span><strong>${m[1]}</strong><small>${m[2]}</small></span></label>`).join('');
+}
+render();
+
+function updatePrimary(){
+  const checked=$$('input[name="domain"]:checked').map(x=>x.value);
+  const cur=$('#primaryDomain').value;
+  $('#primaryDomain').innerHTML = checked.length ? '<option value="">Primary Domain 선택</option>'+checked.map(v=>{const d=domains.find(x=>x[0]===v);return `<option value="${v}">${d[1]}</option>`}).join('') : '<option value="">먼저 위에서 Domain을 선택하세요</option>';
+  if(checked.includes(cur)) $('#primaryDomain').value=cur;
+}
+document.addEventListener('change',e=>{if(e.target.name==='domain') updatePrimary();});
+
+function showStep(n){step=n;$$('.step').forEach((el,i)=>el.classList.toggle('active',i===n));$$('.progress span').forEach((el,i)=>el.classList.toggle('active',i<=n));window.scrollTo({top:0,behavior:'smooth'});}
+function valid(n){
+  $('#error'+n).classList.remove('show');
+  if(n===0){if(!$$('input[name="domain"]:checked').length || !$('#primaryDomain').value){$('#error0').classList.add('show');return false;}}
+  if(n===1){if(depthQs.some((_,i)=>!document.querySelector(`input[name="dq${i}"]:checked`))){$('#error1').classList.add('show');return false;}}
+  if(n===2){if(!$$('input[name="role"]:checked').length){$('#error2').classList.add('show');return false;}}
+  if(n===3){if(!document.querySelector('input[name="maturity"]:checked')){$('#error3').classList.add('show');return false;}}
+  return true;
+}
+$$('[data-next]').forEach(b=>b.onclick=()=>{if(valid(step))showStep(step+1)});$$('[data-prev]').forEach(b=>b.onclick=()=>showStep(step-1));
+
+function calcDepth(){
+  const sums={use:0,workflow:0,integrate:0,build:0,core:0}, max={use:0,workflow:0,integrate:0,build:0,core:0};
+  depthQs.forEach((q,i)=>{const v=+document.querySelector(`input[name="dq${i}"]:checked`).value; Object.entries(q.w).forEach(([k,w])=>{sums[k]+=v*w;max[k]+=4*w;});});
+  const out={};Object.keys(sums).forEach(k=>out[k]=Math.round((sums[k]/max[k])*100));return out;
+}
+function labelOf(list,key){return (list.find(x=>x[0]===key)||[])[1]||key}
+function collect(){
+  const depth=calcDepth(); const selectedDomains=$$('input[name="domain"]:checked').map(x=>x.value); const primaryDomain=$('#primaryDomain').value;
+  const roleKeys=$$('input[name="role"]:checked').map(x=>x.value); const capKeys=$$('input[name="cap"]:checked').map(x=>x.value); const m=document.querySelector('input[name="maturity"]:checked').value;
+  const ranked=Object.entries(depth).sort((a,b)=>b[1]-a[1]);
+  return {version:'0.1',generatedAt:new Date().toISOString(),primaryDomain,domains:selectedDomains,depth,primaryDepth:ranked[0][0],roles:roleKeys,primaryRole:roleKeys[0],maturity:m,capabilities:capKeys};
+}
+function renderResult(data){
+  const dLabel=labelOf(domains,data.primaryDomain); const depthLabel=depthLabels[data.primaryDepth][0]; const roleLabel=labelOf(roles,data.primaryRole); const mLabel=labelOf(maturity,data.maturity);
+  $('#profileTitle').textContent=`${dLabel} × ${depthLabel}`;
+  $('#profileSummary').textContent=`${dLabel} 분야에서 ${depthLabel} 역량이 가장 두드러지며, 주요 역할은 ${roleLabel}입니다. 현재 적용 경험은 ${mLabel} 단계로 응답했습니다.`;
+  $('#primaryPosition').textContent=depthLabel;
+  $('#primaryPositionDesc').textContent=depthLabels[data.primaryDepth][1];
+  $('#rDomain').textContent=dLabel; $('#rRole').textContent=roleLabel; $('#rMaturity').textContent=mLabel;
+  $('#domainPills').innerHTML=data.domains.map(x=>`<span class="pill">${labelOf(domains,x)}</span>`).join('');
+  $('#capPills').innerHTML=(data.capabilities.length?data.capabilities.map(x=>`<span class="pill">${labelOf(capabilities,x)}</span>`).join(''):'<span class="pill">선택 없음</span>');
+  $('#depthBars').innerHTML=Object.entries(data.depth).map(([k,v])=>`<div class="barrow"><b>${depthLabels[k][0]}</b><div class="track"><div class="fill" style="width:${v}%"></div></div><span>${v}</span></div>`).join('');
+  const keys=['use','workflow','integrate','build','core'];
+  let html='<div class="cell h">Domain / AI Depth</div>'+keys.map(k=>`<div class="cell h">${depthLabels[k][0]}</div>`).join('');
+  domains.filter(d=>data.domains.includes(d[0])).forEach(d=>{
+    html+=`<div class="cell rowh">${d[1]}</div>`+keys.map(k=>`<div class="cell ${d[0]===data.primaryDomain?(k===data.primaryDepth?'hit':'soft-hit'):''}">${data.depth[k]}</div>`).join('');
+  });
+  $('#matrix').innerHTML=html;
+  $('#survey').style.display='none';$('#result').style.display='block';window.scrollTo({top:0,behavior:'smooth'});
+  window.__result=data;
+}
+$('#finish').onclick=()=>{if(valid(3))renderResult(collect())};
+$('#restart').onclick=()=>{location.reload()};
+$('#copyResult').onclick=async()=>{
+  const d=window.__result; const txt=`AI Positioning Profile\nPrimary Domain: ${labelOf(domains,d.primaryDomain)}\nPrimary Depth: ${depthLabels[d.primaryDepth][0]}\nPrimary Role: ${labelOf(roles,d.primaryRole)}\nMaturity: ${labelOf(maturity,d.maturity)}\nDepth: ${Object.entries(d.depth).map(([k,v])=>`${depthLabels[k][0]} ${v}`).join(' / ')}\nCapabilities: ${d.capabilities.map(x=>labelOf(capabilities,x)).join(', ')}`;
+  await navigator.clipboard.writeText(txt); $('#copyResult').textContent='복사됨'; setTimeout(()=>$('#copyResult').textContent='결과 복사',1200);
+};
+$('#downloadJson').onclick=()=>{
+  const blob=new Blob([JSON.stringify(window.__result,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ai-positioning-profile.json';a.click();URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>
