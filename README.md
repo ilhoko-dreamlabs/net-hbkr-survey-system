@@ -72,7 +72,8 @@ npm run dev
 | `npm run lint` | ESLint 검사 |
 | `npm run typecheck` | TypeScript 검사 |
 | `npm test` | Node test runner 기반 단위 테스트 |
-| `npm run check` | lint, typecheck, test, build 전체 검증 |
+| `npm run check` | lint, typecheck, test, migration 정합성, build 전체 검증 |
+| `npm run db:check` | Drizzle migration journal과 snapshot 정합성 검사 |
 | `npm run db:generate` | Drizzle migration 생성 |
 | `npm run db:migrate` | `.env.local`을 읽어 migration 적용 |
 | `npm run db:studio` | Drizzle Studio 실행 |
