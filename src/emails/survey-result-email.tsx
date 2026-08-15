@@ -21,6 +21,7 @@ import {
   roles,
   type SurveyResult,
 } from "../lib/survey-data";
+import { buildSurveyInsight } from "../lib/survey-insights";
 
 export type SurveyResultEmailProps = {
   name: string;
@@ -62,6 +63,7 @@ export function SurveyResultEmail({
   const capabilityLabels = result.capabilities.map((value) =>
     labelFor(capabilities, value),
   );
+  const insight = buildSurveyInsight(result);
   const normalizedSiteUrl = siteUrl.replace(/\/+$/u, "");
 
   return (
@@ -80,14 +82,19 @@ export function SurveyResultEmail({
           <Section style={heroStyle}>
             <Text style={eyebrowStyle}>AI POSITIONING PROFILE</Text>
             <Heading as="h2" style={profileStyle}>
-              {domainLabel} × {primaryDepth.label}
+              {insight.archetype}
             </Heading>
             <Text style={summaryStyle}>
-              {domainLabel} 분야에서 {primaryDepth.label} 역량이 가장 두드러지며,
-              주요 역할은 {roleLabel}입니다. 현재 적용 경험은 {maturityLabel}
-              단계입니다.
+              {domainLabel} × {primaryDepth.label}
+              <br />
+              {insight.tagline}
             </Text>
           </Section>
+
+          <Heading as="h3" style={sectionHeadingStyle}>
+            응답에서 읽힌 패턴
+          </Heading>
+          <Text style={bodyTextStyle}>{insight.signal}</Text>
 
           <Section style={metricsStyle}>
             <Text style={metricStyle}>
@@ -135,6 +142,18 @@ export function SurveyResultEmail({
           <Text style={bodyTextStyle}>
             {capabilityLabels.length ? capabilityLabels.join(" · ") : "선택 없음"}
           </Text>
+
+          <Section style={actionSectionStyle}>
+            <Text style={actionEyebrowStyle}>NEXT 7 DAYS · 3 QUESTS</Text>
+            <Heading as="h3" style={actionHeadingStyle}>
+              결과를 행동으로 바꿔보세요
+            </Heading>
+            {insight.actions.map((action, index) => (
+              <Text style={actionItemStyle} key={action}>
+                <strong>{index + 1}.</strong> {action}
+              </Text>
+            ))}
+          </Section>
 
           <Button href={normalizedSiteUrl} style={buttonStyle}>
             설문 사이트 다시 보기
@@ -285,6 +304,34 @@ const bodyTextStyle: CSSProperties = {
   fontSize: "14px",
   lineHeight: 1.7,
   margin: "0 0 24px",
+};
+
+const actionSectionStyle: CSSProperties = {
+  backgroundColor: "#eef3ce",
+  borderRadius: "14px",
+  margin: "26px 0",
+  padding: "22px",
+};
+
+const actionEyebrowStyle: CSSProperties = {
+  color: "#37634e",
+  fontSize: "10px",
+  fontWeight: 700,
+  letterSpacing: "0.09em",
+  margin: "0 0 7px",
+};
+
+const actionHeadingStyle: CSSProperties = {
+  color: "#173e2d",
+  fontSize: "19px",
+  margin: "0 0 15px",
+};
+
+const actionItemStyle: CSSProperties = {
+  color: "#294436",
+  fontSize: "13px",
+  lineHeight: 1.65,
+  margin: "9px 0 0",
 };
 
 const buttonStyle: CSSProperties = {

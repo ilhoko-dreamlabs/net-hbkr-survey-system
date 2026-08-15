@@ -16,8 +16,17 @@ import {
   type RoleValue,
   type SurveyResult,
 } from "@/lib/survey-data";
+import { buildSurveyInsight } from "@/lib/survey-insights";
 
 const stepLabels = ["기본 정보", "Domain", "AI Depth", "Role", "Maturity"] as const;
+const stepMissions = [
+  { icon: "✦", title: "탐험 준비", description: "결과를 받을 정보를 확인해요" },
+  { icon: "◈", title: "활동 무대", description: "AI를 쓰는 분야를 찾아요" },
+  { icon: "⌁", title: "깊이 스캔", description: "말보다 실제 행동을 측정해요" },
+  { icon: "◎", title: "플레이 스타일", description: "일하는 역할과 도구를 골라요" },
+  { icon: "▲", title: "현실 착지", description: "운영 경험의 좌표를 찍어요" },
+] as const;
+const nextButtonLabels = ["탐험 시작", "Depth 스캔하기", "플레이 스타일 찾기", "마지막 좌표 찍기"] as const;
 
 type FormState = {
   respondent: {
@@ -88,6 +97,7 @@ export function Survey() {
     () => roles.filter((role) => form.roles.includes(role.value)),
     [form.roles],
   );
+  const answeredDepthCount = form.depthAnswers.filter((answer) => answer >= 0).length;
 
   function moveToStep(nextStep: number) {
     setStepError("");
@@ -222,12 +232,18 @@ export function Survey() {
     if (!storedResult) return;
 
     const { result, submissionId } = storedResult;
+    const insight = buildSurveyInsight(result);
     const text = [
       "AI Positioning Profile",
+      `Archetype: ${insight.archetype}`,
       `Primary Domain: ${labelFor(domains, result.primaryDomain)}`,
       `Primary Depth: ${depthLabels[result.primaryDepth].label}`,
       `Primary Role: ${labelFor(roles, result.primaryRole)}`,
       `Maturity: ${labelFor(maturityLevels, result.maturity)}`,
+      "",
+      insight.signal,
+      "Next moves:",
+      ...insight.actions.map((action, index) => `${index + 1}. ${action}`),
       `Submission ID: ${submissionId}`,
     ].join("\n");
 
@@ -305,6 +321,23 @@ export function Survey() {
                   style={{ width: `${((step + 1) / stepLabels.length) * 100}%` }}
                 />
               </div>
+              <ol className="mission-rail" aria-label="설문 미션 진행 상황">
+                {stepMissions.map((mission, index) => (
+                  <li
+                    className={`${index === step ? "active" : ""}${index < step ? " complete" : ""}`}
+                    key={mission.title}
+                    aria-current={index === step ? "step" : undefined}
+                  >
+                    <span className="mission-icon" aria-hidden="true">
+                      {index < step ? "✓" : mission.icon}
+                    </span>
+                    <span>
+                      <strong>{mission.title}</strong>
+                      <small>{mission.description}</small>
+                    </span>
+                  </li>
+                ))}
+              </ol>
             </div>
 
             <form className="step-panel" onSubmit={handleSubmit} noValidate>
@@ -318,6 +351,10 @@ export function Survey() {
                     이름과 이메일은 제출 결과를 구분하고 결과 메일을 보내는 데 사용합니다. 소속과 직무는 선택
                     사항입니다.
                   </p>
+                  <div className="mission-brief">
+                    <span aria-hidden="true">🧭</span>
+                    <p><strong>첫 번째 단서</strong> 정답은 없습니다. 지금의 나를 가장 솔직하게 보여주는 좌표를 모읍니다.</p>
+                  </div>
 
                   <div className="field-grid">
                     <label className="field">
@@ -451,6 +488,10 @@ export function Survey() {
                   <p className="step-description">
                     전문성을 가진 분야를 모두 선택한 뒤, 현재를 가장 잘 설명하는 대표 Domain을 하나 지정하세요.
                   </p>
+                  <div className="live-clue" role="status">
+                    <span>수집한 무대</span>
+                    <strong>{form.domains.length ? `${form.domains.length}개 선택` : "아직 탐색 중"}</strong>
+                  </div>
 
                   <div className="choice-grid">
                     {domains.map((domain) => {
@@ -520,6 +561,17 @@ export function Survey() {
                   <p className="step-description">
                     “나는 어느 레벨인가”를 묻지 않습니다. 최근의 업무와 프로젝트 경험을 기준으로 답해 주세요.
                   </p>
+                  <div className="depth-scan-status" role="status" aria-live="polite">
+                    <div>
+                      <span>행동 신호 수집</span>
+                      <strong>{answeredDepthCount} / {depthQuestions.length}</strong>
+                    </div>
+                    <div className="scan-dots" aria-hidden="true">
+                      {depthQuestions.map((question, index) => (
+                        <span className={form.depthAnswers[index] >= 0 ? "filled" : ""} key={question.id} />
+                      ))}
+                    </div>
+                  </div>
                   <div className="scale-caption">
                     <span>전혀 아니다 · 0</span>
                     <span>매우 그렇다 · 4</span>
@@ -577,6 +629,10 @@ export function Survey() {
                     실제로 수행하는 Role을 모두 고르고 대표 Role을 지정하세요. 직접 다뤄본 Capability도 함께 선택할 수
                     있습니다.
                   </p>
+                  <div className="live-clue" role="status">
+                    <span>현재 플레이 스타일</span>
+                    <strong>{form.roles.length ? `${form.roles.length}개 역할 · ${form.capabilities.length}개 역량` : "아직 탐색 중"}</strong>
+                  </div>
 
                   <section className="section-block" aria-labelledby="role-heading">
                     <div className="section-heading">
@@ -684,6 +740,10 @@ export function Survey() {
                     기술 난이도와는 별개의 축입니다. 경험한 가장 높은 운영 수준 하나를 선택하면 결과가 서버에 안전하게
                     저장됩니다.
                   </p>
+                  <div className="mission-brief final-brief">
+                    <span aria-hidden="true">✨</span>
+                    <p><strong>프로필 완성 직전</strong> 마지막 좌표를 선택하면 나만의 AI 캐릭터와 다음 행동 3가지를 공개합니다.</p>
+                  </div>
 
                   <div className="choice-grid">
                     {maturityLevels.map((maturity) => {
@@ -730,7 +790,9 @@ export function Survey() {
                   <span aria-hidden="true" />
                 )}
                 <button className="button primary-button" type="submit" disabled={isSubmitting}>
-                  {step === stepLabels.length - 1 ? (isSubmitting ? "저장 중…" : "결과 저장하고 보기") : "다음"}
+                  {step === stepLabels.length - 1
+                    ? (isSubmitting ? "프로필 만드는 중…" : "내 AI 캐릭터 공개")
+                    : nextButtonLabels[step]}
                   {!isSubmitting && <span className="button-arrow">→</span>}
                 </button>
               </div>
@@ -772,6 +834,7 @@ function ResultView({
   const roleLabel = labelFor(roles, result.primaryRole);
   const maturityLabel = labelFor(maturityLevels, result.maturity);
   const primaryDepth = depthLabels[result.primaryDepth];
+  const insight = buildSurveyInsight(result);
 
   useEffect(() => {
     resultHeadingRef.current?.focus();
@@ -781,13 +844,14 @@ function ResultView({
     <section className="result-card" aria-live="polite">
       <div className="result-header">
         <div>
-          <p className="eyebrow">Your AI Positioning Profile</p>
+          <p className="eyebrow">Profile unlocked · Your AI character</p>
+          <div className="archetype-badge"><span aria-hidden="true">✦</span> AI 캐릭터 발견</div>
           <h2 ref={resultHeadingRef} tabIndex={-1}>
-            {domainLabel} × {primaryDepth.label}
+            {insight.archetype}
           </h2>
+          <p className="result-coordinate">{domainLabel} × {primaryDepth.label}</p>
           <p className="result-summary">
-            {domainLabel} 분야에서 {primaryDepth.label} 역량이 가장 두드러지며, 주요 역할은 {roleLabel}입니다.
-            현재 적용 경험은 {maturityLabel} 단계로 응답했습니다.
+            {insight.tagline}
           </p>
           {emailDelivery === "scheduled" ? (
             <p className="result-email-note" role="status">
@@ -806,6 +870,18 @@ function ResultView({
         </div>
       </div>
 
+      <section className="insight-stage" aria-labelledby="profile-reading-title">
+        <div className="insight-copy">
+          <p className="insight-overline">당신의 응답에서 읽힌 패턴</p>
+          <h3 id="profile-reading-title">지금의 강점을 실제 성과로 연결할 순간입니다.</h3>
+          <p>{insight.signal}</p>
+        </div>
+        <div className="next-leverage">
+          <span>다음 레버리지</span>
+          <strong>{insight.growthEdge}</strong>
+        </div>
+      </section>
+
       <div className="result-grid">
         <div className="metric-card">
           <div className="metric-label">Primary Domain</div>
@@ -822,18 +898,37 @@ function ResultView({
       </div>
 
       <section className="result-section">
-        <h3>AI Depth Shape</h3>
+        <div className="result-section-heading">
+          <div>
+            <span>당신의 역량 지문</span>
+            <h3>AI Depth Shape</h3>
+          </div>
+          <p>높고 낮음은 서열이 아니라, 현재 경험이 집중된 모양입니다.</p>
+        </div>
         <div className="bar-list">
           {Object.entries(result.depth).map(([key, value]) => (
-            <div className="bar-row" key={key}>
+            <div className={`bar-row${key === insight.strongestDepth ? " strongest" : ""}`} key={key}>
               <span className="bar-label">{depthLabels[key as keyof typeof depthLabels].label}</span>
-              <div className="bar-track" aria-label={`${key} ${value}점`}>
+              <div className="bar-track" role="img" aria-label={`${depthLabels[key as keyof typeof depthLabels].label} ${value}점`}>
                 <div className="bar-value" style={{ width: `${value}%` }} />
               </div>
-              <span className="bar-score">{value}</span>
+              <span className="bar-score">{value}{key === insight.strongestDepth ? " ✦" : ""}</span>
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="action-plan" aria-labelledby="action-plan-title">
+        <p className="insight-overline">결과를 행동으로 바꾸는 3개의 퀘스트</p>
+        <h3 id="action-plan-title">다음 7일, 여기서 시작해 보세요.</h3>
+        <ol>
+          {insight.actions.map((action, index) => (
+            <li key={action}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <p>{action}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <section className="result-section">

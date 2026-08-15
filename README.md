@@ -19,12 +19,15 @@ flowchart LR
 - `src/app/actions/submit-survey.ts`: 서버 측 재검증, 허니팟 확인, 이메일 기준 시간당 5회 제한, 계산 및 저장
 - `src/lib/submission-schema.ts`: 허용 enum, 길이, 중복, 대표 선택 포함 여부, 동의 버전을 검증하는 Zod 스키마
 - `src/lib/survey-data.ts`: 설문 기준 데이터와 AI Depth 가중 점수 계산
+- `src/lib/survey-insights.ts`: Depth·Role·Maturity 조합을 캐릭터형 해석과 실행 퀘스트로 변환하는 결정적 규칙
 - `src/lib/email.ts`, `src/emails/`: 저장된 결과를 이용한 best-effort 트랜잭션 이메일 전송과 템플릿
 - `src/db/schema.ts`: `survey_submissions` Drizzle 모델
 - `src/db/migrations/0000_init.sql`: Drizzle journal/snapshot과 함께 관리되는 초기 테이블, 제약조건, 인덱스 및 동시 제출 제한 트리거
 - `src/app/api/maintenance/purge-expired/route.ts`: `CRON_SECRET`으로 보호되는 1년 초과 응답 자동 파기 작업
 - `src/app/privacy/page.tsx`: 개인정보 수집·이용 안내
 - `tests/`: DB 연결 없이 실행하는 점수 및 입력 계약 단위 테스트
+
+설문 화면은 5개의 미션과 실시간 응답 진행 상태를 보여줍니다. 결과는 단순 점수표에 그치지 않고 AI 캐릭터, 응답 패턴 해석, 다음 레버리지와 7일 실행 퀘스트 3개를 생성하며 같은 해석을 결과 이메일에도 사용합니다. 이 해석은 저장된 응답에서 결정적으로 계산되므로 화면과 이메일의 내용이 일치합니다.
 
 저장 행에는 이름, 정규화된 이메일, 선택 입력인 소속·직책, 동의 상태와 버전, 마케팅 이메일 확인 시각, 원본 설문 응답 JSON, 계산 결과 JSON, 제출 시각이 포함됩니다. DB 저장이 성공한 뒤 결과 이메일을 별도로 시도합니다. `DATABASE_URL`, `CRON_SECRET`, `RESEND_API_KEY`는 서버에서만 읽으며 브라우저 번들에 노출하지 않습니다.
 
