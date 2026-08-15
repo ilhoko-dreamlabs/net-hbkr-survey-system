@@ -14,6 +14,11 @@ export const metadata: Metadata = {
     url: "https://survey.hbkr.net",
     siteName: "HBKR",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Positioning Survey | HBKR",
+    description: "AI 캐릭터와 다음 7일의 실행 퀘스트를 발견하는 5분 설문",
+  },
   robots: {
     index: true,
     follow: true,
