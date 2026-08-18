@@ -59,7 +59,6 @@ test("result email delivery skips safely when server credentials are absent", as
         SMTP_USER: "",
         SMTP_PASSWORD: "",
         SURVEY_EMAIL_FROM: "",
-        SURVEY_EMAIL_REPLY_TO: "",
       },
       timeout: 10_000,
     },

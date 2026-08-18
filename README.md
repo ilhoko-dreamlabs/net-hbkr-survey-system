@@ -53,7 +53,6 @@ SMTP_SECURE=true
 SMTP_USER=survey@dreamlabs.co.kr
 SMTP_PASSWORD=Google_앱_비밀번호
 SURVEY_EMAIL_FROM="Dreamlabs Survey <survey@dreamlabs.co.kr>"
-SURVEY_EMAIL_REPLY_TO=survey@dreamlabs.co.kr
 SURVEY_SITE_URL=https://survey.hbkr.net
 ADMIN_USERNAME=관리자_아이디
 ADMIN_PASSWORD=충분히_긴_고유_패스워드
@@ -109,7 +108,7 @@ migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel G
 1. Vercel Project의 Framework Preset은 Next.js, Root Directory는 저장소 루트로 둡니다.
 2. Project Settings → Environment Variables에 Production용 `DATABASE_URL`, `CRON_SECRET`,
    `SURVEY_GLOBAL_HOURLY_LIMIT`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`,
-   `SURVEY_EMAIL_FROM`, 선택값 `SURVEY_EMAIL_REPLY_TO`, `SURVEY_SITE_URL=https://survey.hbkr.net`,
+   `SURVEY_EMAIL_FROM`, `SURVEY_SITE_URL=https://survey.hbkr.net`,
    `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`을 등록합니다.
 3. GitHub 저장소 변수 `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_SCOPE`를 Vercel 프로젝트 값으로 설정합니다.
 4. Vercel Account Settings에서 CI 전용 token을 만들고 GitHub production environment secret `VERCEL_TOKEN`으로
@@ -149,7 +148,7 @@ migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel G
 1. 결과를 보낼 `@dreamlabs.co.kr` Google Workspace 계정을 정합니다. 가능하면 개인 계정보다 `survey@dreamlabs.co.kr` 같은 전용 계정 또는 전송이 허용된 별칭을 사용합니다.
 2. 해당 Google 계정에서 2단계 인증을 켠 뒤 **앱 비밀번호**를 생성합니다. 일반 Google 로그인 비밀번호는 사용하지 않습니다. 조직 정책상 앱 비밀번호 메뉴가 보이지 않으면 Workspace 관리자에게 앱 비밀번호 허용을 요청하거나 Gmail API OAuth 방식을 별도로 구성해야 합니다.
 3. Vercel Project → Settings → Environment Variables에 아래 값을 **Production** 범위로 등록합니다. `SMTP_PASSWORD`에는 공백을 제거한 앱 비밀번호를 넣고 저장소나 GitHub 변수에는 넣지 않습니다.
-4. `SURVEY_EMAIL_FROM`의 실제 주소는 `SMTP_USER`와 같거나, 그 Google Workspace 계정에서 **Send mail as** 권한이 설정된 별칭이어야 합니다.
+4. `SURVEY_EMAIL_FROM`의 실제 주소는 `SMTP_USER`와 같거나, 그 Google Workspace 계정에서 **Send mail as** 권한이 설정된 별칭이어야 합니다. 문의와 답장은 `support@dreamlabs.co.kr`로 고정됩니다.
 5. 설정을 저장한 뒤 GitHub Actions의 production workflow를 다시 실행합니다. 새 배포부터 환경변수가 반영됩니다.
 
 | 변수 | 필수 여부 | 예시와 역할 |
@@ -160,7 +159,6 @@ migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel G
 | `SMTP_USER` | 전송 시 필수 | 전체 Google Workspace 주소, 예: `survey@dreamlabs.co.kr` |
 | `SMTP_PASSWORD` | 전송 시 필수 | 해당 계정의 Google 앱 비밀번호. 일반 로그인 비밀번호 금지 |
 | `SURVEY_EMAIL_FROM` | 전송 시 필수 | `Dreamlabs Survey <survey@dreamlabs.co.kr>` 형식의 발신자 |
-| `SURVEY_EMAIL_REPLY_TO` | 선택 | 문의 답장을 받을 실제 메일함 |
 | `SURVEY_SITE_URL` | 필수 | 이메일 링크 기준의 query/hash/path 없는 HTTPS origin. 기본값과 운영값은 `https://survey.hbkr.net` |
 
 `dreamlabs.co.kr`은 이미 Google Workspace MX를 사용하므로 이 변경을 위해 새 Resend DNS를 추가하지 않습니다. 다만 Google Admin에서 기존 SPF·DKIM·DMARC 상태는 확인해야 하며 SPF 레코드를 중복 생성하지 않습니다. 설정 후 실제 관리 주소로 설문 한 건을 제출해 본문, 링크, From/Reply-To와 인증 결과를 확인하세요. Google Workspace SMTP 설정은 [Google 관리자 도움말](https://support.google.com/a/answer/176600), 앱 비밀번호는 [Google 계정 도움말](https://support.google.com/accounts/answer/185833)을 기준으로 합니다.
@@ -190,7 +188,7 @@ DNS zone은 외부 공급자에서 유지한다는 전제입니다.
 
 ## 개인정보 및 운영 주의사항
 
-- 개인정보 안내는 처리 주체를 HBKR, 요청 창구를 `privacy@hbkr.net`, 보유 기간을 1년으로 표시합니다. 공개 전에 해당 메일함이 실제로 수신 가능한지와 처리 위탁·국외 이전, 공급자 백업 만료 정책을 운영 기준과 함께 확인해야 합니다.
+- 개인정보 안내는 처리 주체를 HBKR, 요청 창구를 `support@dreamlabs.co.kr`, 보유 기간을 1년으로 표시합니다. 공개 전에 해당 메일함이 실제로 수신 가능한지와 처리 위탁·국외 이전, 공급자 백업 만료 정책을 운영 기준과 함께 확인해야 합니다.
 - `vercel.json`의 일일 Cron은 1년이 지난 운영 DB 행을 삭제합니다. Production 배포 후 첫 수동 호출과 로그로 권한 검사·삭제 건수·실패 알림을 확인하고, Neon 백업 보존 설정도 같은 정책에 맞추세요.
 - Neon과 Vercel의 접근 권한을 최소화하고 MFA, secret 회전, 감사 로그, 백업·복구 정책을 운영해야 합니다. Production DB를 로컬 개발에 재사용하지 마세요.
 - 마케팅 수신 의사는 선택값으로 저장되지만 `marketing_verified_at`은 이메일 소유 확인 전까지 비어 있습니다. 확인 메일과 철회 이력이 추가되기 전에는 이 값을 발송 대상 동의로 사용하지 마세요.

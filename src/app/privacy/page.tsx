@@ -43,8 +43,8 @@ export default function PrivacyPage() {
           <p>
             필수 수집에 동의하지 않을 수 있으나, 이 경우 서버에 결과를 저장하거나 이메일로 전송할 수 없습니다.
             열람·정정·삭제 요청은{" "}
-            <a className="text-link" href="mailto:privacy@hbkr.net">
-              privacy@hbkr.net
+            <a className="text-link" href="mailto:support@dreamlabs.co.kr">
+              support@dreamlabs.co.kr
             </a>
             으로 접수할 수 있습니다. 개인정보 처리 주체는 HBKR입니다.
           </p>

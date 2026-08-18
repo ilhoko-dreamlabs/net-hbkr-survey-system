@@ -9,6 +9,7 @@ import type { SurveyResult } from "./survey-data";
 const DEFAULT_SURVEY_SITE_URL = "https://survey.hbkr.net";
 const DEFAULT_SMTP_HOST = "smtp.gmail.com";
 const DEFAULT_SMTP_PORT = 465;
+const SURVEY_SUPPORT_EMAIL = "support@dreamlabs.co.kr";
 
 export type SendSurveyResultEmailInput = {
   to: string;
@@ -109,7 +110,6 @@ export async function sendSurveyResultEmail({
     return;
   }
 
-  const replyTo = process.env.SURVEY_EMAIL_REPLY_TO?.trim();
   const siteUrl = surveySiteUrl(submissionId);
   let transporter: ReturnType<typeof nodemailer.createTransport> | undefined;
 
@@ -138,7 +138,7 @@ export async function sendSurveyResultEmail({
       to,
       subject: "AI Positioning Survey 결과가 도착했습니다",
       html,
-      ...(replyTo ? { replyTo } : {}),
+      replyTo: SURVEY_SUPPORT_EMAIL,
     });
     console.info(
       `[survey-email] sent submission ${submissionId}; SMTP message ${info.messageId || "unknown"}.`,
