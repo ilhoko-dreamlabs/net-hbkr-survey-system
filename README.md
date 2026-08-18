@@ -25,6 +25,7 @@ flowchart LR
 - `src/db/migrations/0000_init.sql`: Drizzle journal/snapshot과 함께 관리되는 초기 테이블, 제약조건, 인덱스 및 동시 제출 제한 트리거
 - `src/app/api/maintenance/purge-expired/route.ts`: `CRON_SECRET`으로 보호되는 1년 초과 응답 자동 파기 작업
 - `src/app/privacy/page.tsx`: 개인정보 수집·이용 안내
+- `src/app/admin/`: 환경변수 기반 로그인과 응답·문항·결과 집계 관리자 대시보드
 - `tests/`: DB 연결 없이 실행하는 점수 및 입력 계약 단위 테스트
 
 설문 화면은 5개의 미션과 실시간 응답 진행 상태를 보여줍니다. 결과는 단순 점수표에 그치지 않고 AI 캐릭터, 응답 패턴 해석, 다음 레버리지와 7일 실행 퀘스트 3개를 생성하며 같은 해석을 결과 이메일에도 사용합니다. 이 해석은 저장된 응답에서 결정적으로 계산되므로 화면과 이메일의 내용이 일치합니다.
@@ -54,6 +55,9 @@ SMTP_PASSWORD=Google_앱_비밀번호
 SURVEY_EMAIL_FROM="Dreamlabs Survey <survey@dreamlabs.co.kr>"
 SURVEY_EMAIL_REPLY_TO=survey@dreamlabs.co.kr
 SURVEY_SITE_URL=https://survey.hbkr.net
+ADMIN_USERNAME=관리자_아이디
+ADMIN_PASSWORD=충분히_긴_고유_패스워드
+ADMIN_SESSION_SECRET=32자_이상의_무작위_비밀값
 ```
 
 로컬에서 실제 메일이 필요하지 않으면 `SMTP_USER`와 `SMTP_PASSWORD`를 비워 둡니다. 이 경우 설문과 DB 저장은 정상 작동하고 이메일만 건너뜁니다. 운영 메일함의 앱 비밀번호와 Production 수신자 데이터를 로컬 환경에서 사용하지 않습니다.
@@ -105,7 +109,8 @@ migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel G
 1. Vercel Project의 Framework Preset은 Next.js, Root Directory는 저장소 루트로 둡니다.
 2. Project Settings → Environment Variables에 Production용 `DATABASE_URL`, `CRON_SECRET`,
    `SURVEY_GLOBAL_HOURLY_LIMIT`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`,
-   `SURVEY_EMAIL_FROM`, 선택값 `SURVEY_EMAIL_REPLY_TO`, `SURVEY_SITE_URL=https://survey.hbkr.net`을 등록합니다.
+   `SURVEY_EMAIL_FROM`, 선택값 `SURVEY_EMAIL_REPLY_TO`, `SURVEY_SITE_URL=https://survey.hbkr.net`,
+   `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`을 등록합니다.
 3. GitHub 저장소 변수 `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_SCOPE`를 Vercel 프로젝트 값으로 설정합니다.
 4. Vercel Account Settings에서 CI 전용 token을 만들고 GitHub production environment secret `VERCEL_TOKEN`으로
    등록합니다. Neon에는 migration 전용 role을 준비하고 그 connection string을 같은 environment의 `DATABASE_URL`
@@ -114,6 +119,20 @@ migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel G
    Vercel** workflow를 `main`에서 수동 실행합니다. 준비 전에는 이 값이 `false`라서 검증 job만 실행됩니다.
 6. Production 배포 뒤 Vercel Cron 화면에서 `/api/maintenance/purge-expired`가 매일 18:15 UTC에 등록됐는지,
    Actions summary의 production URL과 실제 저장·메일 전송이 정상인지 확인합니다.
+
+### 관리자 페이지
+
+운영 관리자 화면은 `https://survey.hbkr.net/admin`입니다. Vercel Project → Settings → Environment Variables에
+`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`을 Production 범위로 등록한 뒤 다시 배포합니다.
+`ADMIN_SESSION_SECRET`은 최소 32자의 무작위 값이어야 하며 아이디나 패스워드와 같은 값을 재사용하지 않습니다.
+
+로그인 성공 시 별도 비밀키로 서명한 8시간 만료 HttpOnly·Secure·SameSite Strict 쿠키를 발급합니다. 관리자 페이지는
+검색 가능한 응답자 목록과 사용자별 상세 결과, 10개 문항의 0~4점 선택 분포, 주요 Domain·Depth·Role·Maturity 집계를
+서버에서 직접 조회합니다. 검색 결과는 페이지당 25건이며 관리자 경로는 검색엔진 색인에서 제외됩니다.
+
+이 방식은 소수 내부 운영자를 위한 단일 계정 구성입니다. 로그인 실패 응답은 일반화하고 일정 지연을 적용했지만,
+공개 운영 전 Vercel Firewall에서 `/admin/login` 요청 제한도 함께 설정하세요. 여러 관리자, 계정별 권한, 감사 로그가
+필요해지면 단일 환경변수 계정을 유지하지 말고 조직용 인증 공급자로 전환합니다.
 
 워크플로는 Vercel CLI `59.0.0`을 고정해 사용합니다. `VERCEL_TOKEN`은 Vercel CLI 단계에만, migration
 `DATABASE_URL`은 migration 단계에만 환경변수로 주입합니다. Production deploy는 직렬화되어 migration 이후 새 push가
