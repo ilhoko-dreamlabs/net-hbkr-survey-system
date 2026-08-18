@@ -8,11 +8,10 @@ const execFileAsync = promisify(execFile);
 test("result email delivery skips safely when server credentials are absent", async () => {
   // The production module is marked server-only. A child process with the
   // react-server condition exercises that real boundary without mocking or
-  // making an external Resend request.
+  // making an external SMTP request.
   const script = String.raw`
     const {
       sendSurveyResultEmail,
-      surveyResultEmailIdempotencyKey,
       isSurveyResultEmailConfigured,
     } = await import("./src/lib/email.ts");
 
@@ -38,7 +37,6 @@ test("result email delivery skips safely when server credentials are absent", as
     });
 
     process.stdout.write(JSON.stringify({
-      idempotencyKey: surveyResultEmailIdempotencyKey("submission-123"),
       configured: isSurveyResultEmailConfigured(),
       warnings,
     }));
@@ -58,7 +56,8 @@ test("result email delivery skips safely when server credentials are absent", as
       cwd: process.cwd(),
       env: {
         ...process.env,
-        RESEND_API_KEY: "",
+        SMTP_USER: "",
+        SMTP_PASSWORD: "",
         SURVEY_EMAIL_FROM: "",
         SURVEY_EMAIL_REPLY_TO: "",
       },
@@ -68,15 +67,14 @@ test("result email delivery skips safely when server credentials are absent", as
 
   assert.equal(stderr, "");
   const output = JSON.parse(stdout) as {
-    idempotencyKey: string;
     configured: boolean;
     warnings: string[];
   };
 
-  assert.equal(output.idempotencyKey, "survey-result/submission-123/v1");
   assert.equal(output.configured, false);
   assert.equal(output.warnings.length, 1);
   assert.match(output.warnings[0], /submission-without-email-config/u);
-  assert.match(output.warnings[0], /RESEND_API_KEY/u);
+  assert.match(output.warnings[0], /SMTP_USER/u);
+  assert.match(output.warnings[0], /SMTP_PASSWORD/u);
   assert.match(output.warnings[0], /SURVEY_EMAIL_FROM/u);
 });

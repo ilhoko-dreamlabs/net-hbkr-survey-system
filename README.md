@@ -11,7 +11,7 @@ flowchart LR
   V --> S["가중 점수·프로필 계산"]
   S --> D["Drizzle ORM"]
   D --> N["Neon Postgres"]
-  D --> E["Resend · 결과 이메일"]
+  D --> E["Google Workspace SMTP · 결과 이메일"]
   S --> U
 ```
 
@@ -29,7 +29,7 @@ flowchart LR
 
 설문 화면은 5개의 미션과 실시간 응답 진행 상태를 보여줍니다. 결과는 단순 점수표에 그치지 않고 AI 캐릭터, 응답 패턴 해석, 다음 레버리지와 7일 실행 퀘스트 3개를 생성하며 같은 해석을 결과 이메일에도 사용합니다. 이 해석은 저장된 응답에서 결정적으로 계산되므로 화면과 이메일의 내용이 일치합니다.
 
-저장 행에는 이름, 정규화된 이메일, 선택 입력인 소속·직책, 동의 상태와 버전, 마케팅 이메일 확인 시각, 원본 설문 응답 JSON, 계산 결과 JSON, 제출 시각이 포함됩니다. DB 저장이 성공한 뒤 결과 이메일을 별도로 시도합니다. `DATABASE_URL`, `CRON_SECRET`, `RESEND_API_KEY`는 서버에서만 읽으며 브라우저 번들에 노출하지 않습니다.
+저장 행에는 이름, 정규화된 이메일, 선택 입력인 소속·직책, 동의 상태와 버전, 마케팅 이메일 확인 시각, 원본 설문 응답 JSON, 계산 결과 JSON, 제출 시각이 포함됩니다. DB 저장이 성공한 뒤 결과 이메일을 별도로 시도합니다. `DATABASE_URL`, `CRON_SECRET`, `SMTP_PASSWORD`는 서버에서만 읽으며 브라우저 번들에 노출하지 않습니다.
 
 ## 로컬 실행
 
@@ -46,13 +46,17 @@ Copy-Item .env.example .env.local
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
 CRON_SECRET=32자 이상의 무작위_비밀값
 SURVEY_GLOBAL_HOURLY_LIMIT=500
-RESEND_API_KEY=
-SURVEY_EMAIL_FROM="HBKR Survey <results@mail.hbkr.net>"
-SURVEY_EMAIL_REPLY_TO=privacy@hbkr.net
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=survey@dreamlabs.co.kr
+SMTP_PASSWORD=Google_앱_비밀번호
+SURVEY_EMAIL_FROM="Dreamlabs Survey <survey@dreamlabs.co.kr>"
+SURVEY_EMAIL_REPLY_TO=survey@dreamlabs.co.kr
 SURVEY_SITE_URL=https://survey.hbkr.net
 ```
 
-로컬에서 실제 메일이 필요하지 않으면 `RESEND_API_KEY`를 비워 둡니다. 이 경우 설문과 DB 저장은 정상 작동하고 이메일만 건너뜁니다. 실제 전송을 시험할 때만 별도 개발용 Resend key와 Resend에서 허용된 발신 주소를 사용하세요. 운영 key나 Production 수신자 데이터를 로컬 환경에서 사용하지 않습니다.
+로컬에서 실제 메일이 필요하지 않으면 `SMTP_USER`와 `SMTP_PASSWORD`를 비워 둡니다. 이 경우 설문과 DB 저장은 정상 작동하고 이메일만 건너뜁니다. 운영 메일함의 앱 비밀번호와 Production 수신자 데이터를 로컬 환경에서 사용하지 않습니다.
 
 스키마를 적용하고 개발 서버를 시작합니다.
 
@@ -100,9 +104,8 @@ migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel G
 
 1. Vercel Project의 Framework Preset은 Next.js, Root Directory는 저장소 루트로 둡니다.
 2. Project Settings → Environment Variables에 Production용 `DATABASE_URL`, `CRON_SECRET`,
-   `SURVEY_GLOBAL_HOURLY_LIMIT`, `SURVEY_EMAIL_FROM`, 선택값 `SURVEY_EMAIL_REPLY_TO`,
-   `SURVEY_SITE_URL=https://survey.hbkr.net`을 등록합니다. 아래 Resend 연동의 `RESEND_API_KEY`도 Production 범위에
-   연결합니다.
+   `SURVEY_GLOBAL_HOURLY_LIMIT`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`,
+   `SURVEY_EMAIL_FROM`, 선택값 `SURVEY_EMAIL_REPLY_TO`, `SURVEY_SITE_URL=https://survey.hbkr.net`을 등록합니다.
 3. GitHub 저장소 변수 `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_SCOPE`를 Vercel 프로젝트 값으로 설정합니다.
 4. Vercel Account Settings에서 CI 전용 token을 만들고 GitHub production environment secret `VERCEL_TOKEN`으로
    등록합니다. Neon에는 migration 전용 role을 준비하고 그 connection string을 같은 environment의 `DATABASE_URL`
@@ -118,32 +121,36 @@ migration → `--prebuilt` production deploy 순서로 진행합니다. Vercel G
 [Vercel의 GitHub Actions 안내](https://vercel.com/docs/deployments/git/vercel-for-github)와 prebuilt deploy 패턴을
 따릅니다. `.vercel/`, `.env.local`, token과 provider secret은 커밋하지 않습니다.
 
-## 결과 이메일 (Resend)
+## 결과 이메일 (Google Workspace SMTP)
 
 결과 메일은 필수 동의로 저장된 응답자의 이메일 주소에 해당 제출의 포지셔닝 요약을 보내는 트랜잭션 알림입니다. 마케팅 동의 여부와 관계없이 제출 결과 안내 목적으로만 사용하며, 별도의 홍보 메일 대상 등록을 하지 않습니다.
 
-### Marketplace와 발신 도메인 준비
+### Google 계정과 Vercel 설정
 
-1. Vercel Project의 Marketplace에서 **Resend**를 설치하고 이 프로젝트 및 사용할 환경(Production, 필요 시 Preview)에 연결합니다. 연동은 Vercel에 server-only `RESEND_API_KEY`를 생성합니다.
-2. Resend Dashboard → Domains에서 전송 전용 하위 도메인(예: `mail.hbkr.net`)을 추가합니다. 루트 도메인과 평판을 분리할 수 있어 하위 도메인을 권장합니다.
-3. Resend가 제시하는 MX/SPF 및 DKIM DNS 레코드를 `hbkr.net` DNS 공급자에 값 그대로 등록합니다. 웹 서비스의 `survey` CNAME과 메일 인증 레코드는 서로 다른 host에 두며, DNS 화면에서 Verified가 될 때까지 기다립니다.
-4. `SURVEY_EMAIL_FROM`의 주소 domain은 인증한 domain과 일치시킵니다. 인증 후에는 그 domain의 원하는 local-part를 발신 주소로 쓸 수 있습니다.
-5. `SURVEY_EMAIL_REPLY_TO`는 선택값입니다. 설정한다면 실제 수신·응대 가능한 메일함을 사용하세요. Resend의 발신 domain 인증은 Reply-To 메일함을 만들어 주지 않습니다.
+1. 결과를 보낼 `@dreamlabs.co.kr` Google Workspace 계정을 정합니다. 가능하면 개인 계정보다 `survey@dreamlabs.co.kr` 같은 전용 계정 또는 전송이 허용된 별칭을 사용합니다.
+2. 해당 Google 계정에서 2단계 인증을 켠 뒤 **앱 비밀번호**를 생성합니다. 일반 Google 로그인 비밀번호는 사용하지 않습니다. 조직 정책상 앱 비밀번호 메뉴가 보이지 않으면 Workspace 관리자에게 앱 비밀번호 허용을 요청하거나 Gmail API OAuth 방식을 별도로 구성해야 합니다.
+3. Vercel Project → Settings → Environment Variables에 아래 값을 **Production** 범위로 등록합니다. `SMTP_PASSWORD`에는 공백을 제거한 앱 비밀번호를 넣고 저장소나 GitHub 변수에는 넣지 않습니다.
+4. `SURVEY_EMAIL_FROM`의 실제 주소는 `SMTP_USER`와 같거나, 그 Google Workspace 계정에서 **Send mail as** 권한이 설정된 별칭이어야 합니다.
+5. 설정을 저장한 뒤 GitHub Actions의 production workflow를 다시 실행합니다. 새 배포부터 환경변수가 반영됩니다.
 
 | 변수 | 필수 여부 | 예시와 역할 |
 | --- | --- | --- |
-| `RESEND_API_KEY` | 전송 시 필수 | Marketplace가 주입하는 비밀 key. 저장소와 `NEXT_PUBLIC_*`에 절대 넣지 않음 |
-| `SURVEY_EMAIL_FROM` | 전송 시 필수 | `HBKR Survey <results@mail.hbkr.net>`처럼 인증 domain을 사용한 발신자 |
+| `SMTP_HOST` | 선택 | 기본값 `smtp.gmail.com` |
+| `SMTP_PORT` | 선택 | 기본값 `465` |
+| `SMTP_SECURE` | 선택 | 포트 465에서는 `true`; 587을 쓸 때는 `false` |
+| `SMTP_USER` | 전송 시 필수 | 전체 Google Workspace 주소, 예: `survey@dreamlabs.co.kr` |
+| `SMTP_PASSWORD` | 전송 시 필수 | 해당 계정의 Google 앱 비밀번호. 일반 로그인 비밀번호 금지 |
+| `SURVEY_EMAIL_FROM` | 전송 시 필수 | `Dreamlabs Survey <survey@dreamlabs.co.kr>` 형식의 발신자 |
 | `SURVEY_EMAIL_REPLY_TO` | 선택 | 문의 답장을 받을 실제 메일함 |
 | `SURVEY_SITE_URL` | 필수 | 이메일 링크 기준의 query/hash/path 없는 HTTPS origin. 기본값과 운영값은 `https://survey.hbkr.net` |
 
-Production에서는 환경 변수를 저장한 뒤 다시 배포해야 새 값이 적용됩니다. 배포 후 실제 관리 주소로 설문 한 건을 제출해 본문, 링크, From/Reply-To, SPF·DKIM·DMARC 결과를 확인하세요. Resend Marketplace 동작은 [Vercel Marketplace 안내](https://vercel.com/marketplace/resend), 발신 API와 domain 설정은 [Resend 문서](https://resend.com/docs)를 기준으로 합니다.
+`dreamlabs.co.kr`은 이미 Google Workspace MX를 사용하므로 이 변경을 위해 새 Resend DNS를 추가하지 않습니다. 다만 Google Admin에서 기존 SPF·DKIM·DMARC 상태는 확인해야 하며 SPF 레코드를 중복 생성하지 않습니다. 설정 후 실제 관리 주소로 설문 한 건을 제출해 본문, 링크, From/Reply-To와 인증 결과를 확인하세요. Google Workspace SMTP 설정은 [Google 관리자 도움말](https://support.google.com/a/answer/176600), 앱 비밀번호는 [Google 계정 도움말](https://support.google.com/accounts/answer/185833)을 기준으로 합니다.
 
 ### 저장과 메일 실패의 독립성
 
-DB insert가 설문 제출의 성공 기준입니다. 저장이 완료된 뒤 이메일을 best-effort로 시도하므로 `RESEND_API_KEY` 미설정, Resend 일시 장애, 수신 거부나 template 전송 오류가 발생해도 이미 저장된 제출과 계산 결과를 롤백하지 않습니다. 사용자는 화면에서 저장된 결과를 계속 확인·다운로드할 수 있어야 합니다.
+DB insert가 설문 제출의 성공 기준입니다. 저장이 완료된 뒤 이메일을 best-effort로 시도하므로 SMTP 환경변수 미설정, Google Workspace 일시 장애, 수신 거부나 template 전송 오류가 발생해도 이미 저장된 제출과 계산 결과를 롤백하지 않습니다. 사용자는 화면에서 저장된 결과를 계속 확인·다운로드할 수 있어야 합니다.
 
-반대로 DB 저장이 실패하면 결과 이메일을 보내지 않습니다. 메일 발송 성공은 받은편지함 도착을 보장하지 않으므로 운영에서는 Resend의 delivered, bounced, complained, suppressed 상태를 별도로 관찰하세요. 현재 저장 행 자체가 메일 재시도 queue는 아니므로 무조건 재제출을 안내해 중복 데이터를 만들지 말고, 전송 이력·idempotency·관리자 재전송 정책을 먼저 마련한 뒤 재시도 기능을 운영하세요.
+반대로 DB 저장이 실패하면 결과 이메일을 보내지 않습니다. SMTP 서버가 수락한 상태는 받은편지함 도착을 보장하지 않습니다. 현재 저장 행 자체가 메일 재시도 queue는 아니므로 무조건 재제출을 안내해 중복 데이터를 만들지 말고, 전송 상태·반송 처리·관리자 재전송 정책을 먼저 마련한 뒤 재시도 기능을 운영하세요.
 
 ## `survey.hbkr.net` 연결 (외부 DNS)
 

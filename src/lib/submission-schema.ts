@@ -122,7 +122,7 @@ export const surveySubmissionSchema = z
     maturity: maturityValueSchema,
     privacyConsent: z.literal(true),
     marketingConsent: z.boolean(),
-    privacyVersion: z.literal("2026-08-14"),
+    privacyVersion: z.literal("2026-08-18"),
     website: z.string().max(200).optional(),
   })
   .strict()

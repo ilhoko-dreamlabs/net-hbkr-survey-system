@@ -180,7 +180,7 @@ export function Survey() {
         maturity: form.maturity as MaturityValue,
         privacyConsent: true,
         marketingConsent: form.marketingConsent,
-        privacyVersion: "2026-08-14",
+        privacyVersion: "2026-08-18",
         website: form.website,
       });
 

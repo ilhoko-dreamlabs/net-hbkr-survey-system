@@ -20,7 +20,7 @@ function validSubmission() {
     maturity: "production",
     privacyConsent: true,
     marketingConsent: false,
-    privacyVersion: "2026-08-14",
+    privacyVersion: "2026-08-18",
     website: "",
   };
 }

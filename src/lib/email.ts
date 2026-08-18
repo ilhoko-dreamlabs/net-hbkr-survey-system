@@ -1,12 +1,14 @@
 import "server-only";
 
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import { render } from "react-email";
 
 import { SurveyResultEmail } from "../emails/survey-result-email";
 import type { SurveyResult } from "./survey-data";
 
 const DEFAULT_SURVEY_SITE_URL = "https://survey.hbkr.net";
-const EMAIL_TEMPLATE_VERSION = "v1";
+const DEFAULT_SMTP_HOST = "smtp.gmail.com";
+const DEFAULT_SMTP_PORT = 465;
 
 export type SendSurveyResultEmailInput = {
   to: string;
@@ -17,10 +19,20 @@ export type SendSurveyResultEmailInput = {
 };
 
 export function isSurveyResultEmailConfigured() {
-  return Boolean(
-    process.env.RESEND_API_KEY?.trim() &&
+  const credentialsPresent = Boolean(
+    process.env.SMTP_USER?.trim() &&
+      process.env.SMTP_PASSWORD?.trim() &&
       process.env.SURVEY_EMAIL_FROM?.trim(),
   );
+  if (!credentialsPresent) return false;
+
+  try {
+    const port = smtpPort();
+    smtpSecure(port);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function surveySiteUrl(submissionId: string) {
@@ -55,8 +67,23 @@ function surveySiteUrl(submissionId: string) {
   }
 }
 
-export function surveyResultEmailIdempotencyKey(submissionId: string) {
-  return `survey-result/${submissionId}/${EMAIL_TEMPLATE_VERSION}`;
+function smtpPort() {
+  const configured = process.env.SMTP_PORT?.trim();
+  if (!configured) return DEFAULT_SMTP_PORT;
+
+  const port = Number(configured);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error("SMTP_PORT must be an integer between 1 and 65535.");
+  }
+  return port;
+}
+
+function smtpSecure(port: number) {
+  const configured = process.env.SMTP_SECURE?.trim().toLowerCase();
+  if (!configured) return port === 465;
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+  throw new Error('SMTP_SECURE must be either "true" or "false".');
 }
 
 export async function sendSurveyResultEmail({
@@ -66,14 +93,16 @@ export async function sendSurveyResultEmail({
   submittedAt,
   result,
 }: SendSurveyResultEmailInput): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  const password = process.env.SMTP_PASSWORD?.trim();
   const from = process.env.SURVEY_EMAIL_FROM?.trim();
   const missingConfiguration = [
-    !apiKey ? "RESEND_API_KEY" : null,
+    !user ? "SMTP_USER" : null,
+    !password ? "SMTP_PASSWORD" : null,
     !from ? "SURVEY_EMAIL_FROM" : null,
   ].filter((value): value is string => value !== null);
 
-  if (!apiKey || !from) {
+  if (!user || !password || !from) {
     console.warn(
       `[survey-email] skipped submission ${submissionId}: missing ${missingConfiguration.join(", ")}.`,
     );
@@ -82,42 +111,44 @@ export async function sendSurveyResultEmail({
 
   const replyTo = process.env.SURVEY_EMAIL_REPLY_TO?.trim();
   const siteUrl = surveySiteUrl(submissionId);
+  let transporter: ReturnType<typeof nodemailer.createTransport> | undefined;
 
   try {
-    const resend = new Resend(apiKey);
-    const { data, error } = await resend.emails.send(
-      {
-        from,
-        to: [to],
-        subject: "AI Positioning Survey 결과가 도착했습니다",
-        react: SurveyResultEmail({
+    const port = smtpPort();
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST?.trim() || DEFAULT_SMTP_HOST,
+      port,
+      secure: smtpSecure(port),
+      auth: { user, pass: password },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+    });
+    const html = await render(
+      SurveyResultEmail({
           name,
           submissionId,
           submittedAt,
           result,
           siteUrl,
-        }),
-        ...(replyTo ? { replyTo } : {}),
-      },
-      {
-        idempotencyKey: surveyResultEmailIdempotencyKey(submissionId),
-      },
+      }),
     );
-
-    if (error) {
-      console.error(
-        `[survey-email] provider rejected submission ${submissionId}: ${error.name ?? "unknown_error"}.`,
-      );
-      return;
-    }
-
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject: "AI Positioning Survey 결과가 도착했습니다",
+      html,
+      ...(replyTo ? { replyTo } : {}),
+    });
     console.info(
-      `[survey-email] sent submission ${submissionId}; provider message ${data?.id ?? "unknown"}.`,
+      `[survey-email] sent submission ${submissionId}; SMTP message ${info.messageId || "unknown"}.`,
     );
   } catch (error) {
     const errorName = error instanceof Error ? error.name : "UnknownError";
     console.error(
       `[survey-email] send failed for submission ${submissionId}: ${errorName}.`,
     );
+  } finally {
+    transporter?.close();
   }
 }

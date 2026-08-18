@@ -204,7 +204,7 @@ export async function submitSurvey(
       }
     } else {
       console.warn(
-        `[survey-email] not scheduled for submission ${stored.id}: RESEND_API_KEY and/or SURVEY_EMAIL_FROM is not configured.`,
+        `[survey-email] not scheduled for submission ${stored.id}: SMTP credentials and/or SURVEY_EMAIL_FROM is not configured.`,
       );
     }
 

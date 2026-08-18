@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <article className="legal-card">
         <p className="eyebrow">HBKR · Privacy</p>
         <h1>개인정보 수집·이용 안내</h1>
-        <p className="legal-updated">시행일: 2026년 8월 14일 · 안내 버전: 2026-08-14</p>
+        <p className="legal-updated">시행일: 2026년 8월 18일 · 안내 버전: 2026-08-18</p>
 
         <section>
           <h2>수집 목적</h2>
@@ -24,8 +24,9 @@ export default function PrivacyPage() {
         <section>
           <h2>결과 메일 전송</h2>
           <p>
-            결과 메일 전송을 위해 입력한 이메일 주소, 이름과 결과 요약이 이메일 전송 서비스 제공자 Resend에서
-            처리될 수 있습니다. 마케팅 소식은 별도의 선택 동의와 이메일 소유 확인 없이는 발송하지 않습니다.
+            결과 메일 전송을 위해 입력한 이메일 주소, 이름과 결과 요약이 Dreamlabs의 Google Workspace 계정과
+            Google 메일 시스템에서 처리될 수 있습니다. 마케팅 소식은 별도의 선택 동의와 이메일 소유 확인 없이는
+            발송하지 않습니다.
           </p>
         </section>
 
